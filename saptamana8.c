@@ -34,6 +34,9 @@ void get_permissions(mode_t mode, char *str) {
 }
 
 
+//void convert_to_grayscale(const char *input_path, const char *output_path){}
+
+
 int main(int argc, char *argv[]) {
     if (argc != 3) {
         perror("Eroare numar de argumente");
@@ -83,6 +86,21 @@ int main(int argc, char *argv[]) {
 	    exit(EXIT_FAILURE);
 }
 
+	   if (strstr(entry->d_name, ".bmp") != NULL) {
+          
+                    pid_t bmp_pid = fork();
+                    if (bmp_pid == -1) {
+                        perror("Eroare la fork pentru imaginea BMP");
+                        exit(EXIT_FAILURE);
+                    } else if (bmp_pid == 0) {
+                        //fiu
+		      // convert_to_grayscale(input_path, output_path);
+                        exit(EXIT_SUCCESS);
+                    }
+                }
+
+	   
+
 //deschidre bmp
     int fd = open(input_path, O_RDONLY);
     if (fd == -1) {
@@ -131,10 +149,13 @@ int fo = open(output_path, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_I
     dprintf(stats_fd, "drepturi de acces user: %s\n", user_permissions);
     dprintf(stats_fd, "drepturi de acces grup: R--\n");
     dprintf(stats_fd, "drepturi de acces altii: ---\n");
-}
+ 
 
-	  exit(EXIT_SUCCESS);
-	}}
+    close(stats_fd);
+    exit(EXIT_SUCCESS);
+
+	  
+	}}}
   
 
 

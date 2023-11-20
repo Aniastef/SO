@@ -79,6 +79,8 @@ void process_file(const char *filename, int stats_fd) {
     dprintf(stats_fd, "drepturi de acces altii: ---\n");
 }
 
+
+
 void process_directory(const char *dirname, int stats_fd) {
     struct stat dir_stat;
     if (stat(dirname, &dir_stat) == -1) {
@@ -103,6 +105,7 @@ void process_directory(const char *dirname, int stats_fd) {
     struct dirent *entry;
     while ((entry = readdir(dir)) != NULL) {
         char path[PATH_MAX];
+        
 	snprintf(path, PATH_MAX, "%s/%s", dirname, entry->d_name);
 
         if (entry->d_type == DT_REG && strstr(entry->d_name, ".bmp") != NULL)
@@ -119,11 +122,7 @@ void process_directory(const char *dirname, int stats_fd) {
         }
 	
 	else if (entry->d_type == DT_DIR && strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0)
-	  
-	{
-            //director
-            process_directory(path, stats_fd);
-        }
+	 
  
     }
 
