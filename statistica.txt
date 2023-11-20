@@ -1,0 +1,25 @@
+nume director: directorso
+identificatorul utilizatorului: 1000
+drepturi de acces user: RWX
+drepturi de acces grup: R--
+drepturi de acces altii: ---
+nume fisier: directorso/fisier.bmp
+inaltime: 41943040
+lungime: 8126464
+dimensiune: 2072661314
+identificatorul utilizatorului: 1000
+timpul ultimei modificari: 01.01.1970
+contorul de legaturi: 2072661314
+drepturi de acces user: RWX------
+drepturi de acces grup: R--
+drepturi de acces altii: ---
+nume fisier: directorso/pexels-katie-burandt-1212693.jpg
+inaltime: 18432
+lungime: 1207959809
+dimensiune: -520103681
+identificatorul utilizatorului: 1000
+timpul ultimei modificari: 15.05.2007
+contorul de legaturi: -520103681
+drepturi de acces user: RWX------
+drepturi de acces grup: R--
+drepturi de acces altii: ---
