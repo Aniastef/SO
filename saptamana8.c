@@ -12,8 +12,8 @@
 #include <limits.h>
 
 typedef struct {
-    int width;
-    int height;
+    long int width;
+    long int height;
     int xPixelsPerM;
     int yPixelsPerM;
 }InfoHeader;
@@ -51,72 +51,85 @@ void convertToGrayscale(const char *inputPath) {
  int readHeader;
  
 
-    int inputFile = open(inputPath, O_RDONLY);
+    int fileDescriptor = open(inputPath, O_RDWR);
 
-    if (inputFile== -1) {
+    if (fileDescriptor== -1) {
         perror("Error opening input file for conversion");
         exit(EXIT_FAILURE);
     }
     
     
  
-
+struct stat fileStat;
  
 
    
-int outputFile = open("fisiernou.bmp", O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+//int outputFile = open("fisiernou.bmp", O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
 
 
-    if (outputFile== -1) {
-        perror("Error creating output file for conversion");
-        close(inputFile);
-        exit(EXIT_FAILURE);
-    }
+   // if (outputFile== -1) {
+    //    perror("Error creating output file for conversion");
+   //     close(inputFile);
+   //     exit(EXIT_FAILURE);
+   // }
 
 
     Header header;
     InfoHeader infoHeader;
 
    //citim header
-  readHeader = read(inputFile, &header, sizeof(Header));
+  readHeader = read(fileDescriptor, &header, sizeof(Header));
 
     if (readHeader== -1) {
         perror("Error reading header for conversion");
-        close(inputFile);
-        close(outputFile);
+        //close(inputFile);
+        //close(outputFile);
+        close(fileDescriptor);
         exit(EXIT_FAILURE);
     }
     
     
-  readHeader = read(inputFile, &infoHeader, sizeof(InfoHeader));
+  readHeader = read(fileDescriptor, &infoHeader, sizeof(InfoHeader));
 
     if (readHeader== -1) {
         perror("Error reading header for conversion");
-        close(inputFile);
-        close(outputFile);
+       // close(inputFile);
+        //close(outputFile);
+          close(fileDescriptor);
         exit(EXIT_FAILURE);
     }
 
 
 
-    int imageSize = infoHeader.width * infoHeader.height;
+   if (strstr(inputPath, ".bmp")) {
+   
+ 
+ long int fileSize=infoHeader.width*infoHeader.height;
+ 
+printf("%ld %ld",infoHeader.width,infoHeader.height);
+lseek(fileDescriptor, header.dataOffset, SEEK_SET);
 
-    for (int i = 0; i < imageSize; ++i) {
+
+    for (int i = 0; i < fileSize; ++i) {
         unsigned char pixel[3];
-        read(inputFile, pixel, sizeof(pixel));
-
+        read(fileDescriptor, pixel, sizeof(pixel));
+	
         //formula
         unsigned char grayValue = (unsigned char)(0.299 * pixel[0] + 0.587 * pixel[1] + 0.114 * pixel[2]);
 
-        //scriem in fisierul de iesire
-        write(outputFile, &grayValue, sizeof(grayValue));
+      lseek(fileDescriptor, -sizeof(pixel), SEEK_CUR);
+       // write(outputFile, &grayValue, sizeof(grayValue));
+	write(fileDescriptor, &grayValue, sizeof(grayValue));
+
     }
 
    
-    close(inputFile);
-    close(outputFile);
+   // close(inputFile);
+   // close(outputFile);
+   close(fileDescriptor);
 
     printf("\n grayscale conversion for %s successful\n", inputPath);
+    }
 }
 
 void process_file(char *inputPath, char *outputDirectory) {
@@ -154,8 +167,8 @@ void process_file(char *inputPath, char *outputDirectory) {
     
     
     
-    struct stat fileStat;
-
+struct stat fileStat;
+stat(inputPath, &fileStat);
   
 
    
@@ -194,9 +207,9 @@ newFileDescriptor = open(statOutputPath, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR |
 
         if (S_ISREG(fileStat.st_mode) && strstr(inputPath, ".bmp")) 
         {
-            sprintf(buffer, "%d", infoHeader.width);
+            sprintf(buffer, "%ld", infoHeader.width);
             write(newFileDescriptor, buffer, strlen(buffer));
-            sprintf(buffer, "%d", infoHeader.height);
+            sprintf(buffer, "%ld", infoHeader.height);
             write(newFileDescriptor, buffer, strlen(buffer));
 
             pid_t grayPid = fork();
@@ -210,7 +223,8 @@ newFileDescriptor = open(statOutputPath, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR |
             {
            
                 close(newFileDescriptor);  
-                convertToGrayscale(inputPath);
+                //face ceva dar STA FOARTE MULT si nu stiu dc
+               //convertToGrayscale(inputPath);
                 exit(0);
             }
         }
@@ -227,6 +241,7 @@ newFileDescriptor = open(statOutputPath, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR |
 
         if (WIFEXITED(status)) {
             printf("Child process exited with code %d\n", WEXITSTATUS(status));
+            
     }
 }
     
@@ -243,8 +258,8 @@ newFileDescriptor = open(statOutputPath, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR |
    get_permissions(fileStat.st_mode, userPermissions);
 
     dprintf(newFileDescriptor, "File name: %s\n", inputPath);
-    dprintf(newFileDescriptor, "Height: %d\n", infoHeader.height);
-    dprintf(newFileDescriptor, "Width: %d\n", infoHeader.width);
+    dprintf(newFileDescriptor, "Height: %ld\n", infoHeader.height);
+    dprintf(newFileDescriptor, "Width: %ld\n", infoHeader.width);
     dprintf(newFileDescriptor, "File size: %ld\n", fileStat.st_size);
     dprintf(newFileDescriptor, "User ID: %d\n", userId);
     dprintf(newFileDescriptor, "Last modification time: %s\n", timeStr);
@@ -302,13 +317,15 @@ int main(int argc, char *argv[]) {
                 exit(0);
             }
 
+  
+            
             int status;
             waitpid(pid, &status, 0);
 
             if (WIFEXITED(status)) {
                 printf("Process with PID %d exited with code %d\n", pid, WEXITSTATUS(status));
-            }
         }
+      }
     }
 
     closedir(dir);
