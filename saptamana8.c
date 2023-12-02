@@ -9,16 +9,30 @@
 #include <sys/wait.h>
 #include <errno.h>
 #include <time.h>
+#include <limits.h>
 
-
-
-struct BMPHeader {
-    int file_size;
-    int data_offset;
-    int header_size;
+typedef struct {
     int width;
     int height;
-};
+    int xPixelsPerM;
+    int yPixelsPerM;
+}InfoHeader;
+
+typedef struct{
+int signature;
+int fileSize;
+int reserved;
+int dataOffset;
+}Header;
+
+typedef struct{
+int red;
+int green;
+int blue;
+int reserver;
+}ColorTable;
+
+
 
 void get_permissions(mode_t mode, char *str) {
     str[0] = (mode & S_IRUSR) ? 'R' : '-';
@@ -33,141 +47,269 @@ void get_permissions(mode_t mode, char *str) {
     str[9] = '\0';
 }
 
+void convertToGrayscale(const char *inputPath, const char *outputPath) {
+ int readHeader;
+    //
+    int inputFile = open(inputPath, O_RDONLY);
 
-//void convert_to_grayscale(const char *input_path, const char *output_path){}
+    if (inputFile== -1) {
+        perror("Error opening input file for conversion");
+        exit(EXIT_FAILURE);
+    }
+    
+    printf("%s",inputPath);
 
+    
+   
+int outputFile=creat("fisiernou.bmp", S_IRUSR | S_IWUSR);
+    if (outputFile== -1) {
+        perror("Error creating output file for conversion");
+        close(inputFile);
+        exit(EXIT_FAILURE);
+    }
+
+
+    Header header;
+    InfoHeader infoHeader;
+
+   //citim header
+  readHeader = read(inputFile, &header, sizeof(Header));
+
+    if (readHeader== -1) {
+        perror("Error reading header for conversion");
+        close(inputFile);
+        close(outputFile);
+        exit(EXIT_FAILURE);
+    }
+    
+    
+  readHeader = read(inputFile, &infoHeader, sizeof(InfoHeader));
+
+    if (readHeader== -1) {
+        perror("Error reading header for conversion");
+        close(inputFile);
+        close(outputFile);
+        exit(EXIT_FAILURE);
+    }
+
+
+    
+    write(outputFile, &infoHeader, sizeof(InfoHeader));
+
+    int imageSize = infoHeader.width * infoHeader.height;
+
+    for (int i = 0; i < imageSize; ++i) {
+        unsigned char pixel[3];
+        read(inputFile, pixel, sizeof(pixel));
+
+        //formula
+        unsigned char grayValue = (unsigned char)(0.299 * pixel[0] + 0.587 * pixel[1] + 0.114 * pixel[2]);
+
+        //scriem in fisierul de iesire
+        write(outputFile, &grayValue, sizeof(grayValue));
+    }
+
+   
+    close(inputFile);
+    close(outputFile);
+
+    printf("\n Grayscale conversion for %s successful\n", inputPath);
+}
+
+void process_file(char *inputPath, char *outputDirectory) {
+    char buffer[100000];
+    int readHeader;
+    int fileDescriptor;
+    int newFileDescriptor;
+
+
+    fileDescriptor= open(inputPath, O_RDWR);
+
+    if (fileDescriptor == -1) {
+        perror("Error opening file");
+        exit(EXIT_FAILURE);
+    }
+
+    Header header;
+    InfoHeader infoHeader;
+
+    readHeader = read(fileDescriptor, &header, sizeof(Header));
+
+    if (readHeader == -1) {
+        perror("Error reading header");
+        close(fileDescriptor);
+        exit(EXIT_FAILURE);
+    }
+    
+    readHeader= read(fileDescriptor, &infoHeader, sizeof(InfoHeader));
+
+    if (readHeader == -1) {
+        perror("Eroare la citirea informatiilor despre imagine");
+        close(fileDescriptor);
+        exit(-1);
+    }
+    
+    
+    
+    struct stat fileStat;
+
+  
+
+   
+DIR *outputDir = opendir(outputDirectory);
+
+if (outputDir == NULL) {
+    perror("Error opening output directory");
+    close(fileDescriptor);
+    exit(EXIT_FAILURE);
+} 
+
+char statOutputPath[PATH_MAX];
+char *inputFileName = strrchr(inputPath, '/'); //tai doar numele fisierului sa nu fie toata calea
+if (inputFileName != NULL) {
+    inputFileName++;  //sar peste /
+} else {
+    inputFileName = inputPath; //daca n-am / inseamna ca-s deja in directorul ala
+}
+snprintf(statOutputPath, PATH_MAX, "%s/%s_statistica.txt", outputDirectory, inputFileName);
+
+
+newFileDescriptor = open(statOutputPath, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+
+    if (newFileDescriptor == -1) 
+    {
+        perror("Error creating statistica.txt file");
+        close(fileDescriptor);
+        exit(EXIT_FAILURE);
+    } 
+    else 
+    {
+    
+        stat(inputPath, &fileStat); //se stocheaza informtii despre fisierul bmp in filestat
+
+
+
+        if (S_ISREG(fileStat.st_mode) && strstr(inputPath, ".bmp")) 
+        {
+            sprintf(buffer, "%d", infoHeader.width);
+            write(newFileDescriptor, buffer, strlen(buffer));
+            sprintf(buffer, "%d", infoHeader.height);
+            write(newFileDescriptor, buffer, strlen(buffer));
+
+            pid_t grayPid = fork();
+
+            if (grayPid == -1) 
+            {
+                perror("Error creating child process for grayscale conversion");
+                exit(EXIT_FAILURE);
+            } 
+            else if (grayPid == 0) 
+            {
+           
+                close(newFileDescriptor);  
+                convertToGrayscale(inputPath,outputDirectory);
+                exit(0);
+            }
+        }
+
+        sprintf(buffer, "xPixelsPerM: %d \n", infoHeader.xPixelsPerM);
+        write(newFileDescriptor, buffer, strlen(buffer));
+        sprintf(buffer, "yPixelsPerM: %d \n", infoHeader.yPixelsPerM);
+        write(newFileDescriptor, buffer, strlen(buffer));
+
+        printf("Information saved in statistica.txt\n");
+        
+        int status;
+        waitpid(-1, &status, 0);
+
+        if (WIFEXITED(status)) {
+            printf("Child process exited with code %d\n", WEXITSTATUS(status));
+    }
+}
+    
+   time_t modificationTime = header.dataOffset;
+   struct tm *modificationTm = localtime(&modificationTime);
+   char timeStr[20];
+   strftime(timeStr, sizeof(timeStr), "%d.%m.%Y", modificationTm);
+    
+  
+
+    int userId = getuid();
+
+    char userPermissions[10];
+    get_permissions(S_IRUSR | S_IWUSR | S_IXUSR, userPermissions);
+
+    dprintf(newFileDescriptor, "File name: %s\n", inputPath);
+    dprintf(newFileDescriptor, "Height: %d\n", infoHeader.height);
+    dprintf(newFileDescriptor, "Width: %d\n", infoHeader.width);
+    dprintf(newFileDescriptor, "File size: %ld\n", fileStat.st_size);
+    dprintf(newFileDescriptor, "User ID: %d\n", userId);
+    dprintf(newFileDescriptor, "Last modification time: %s\n", timeStr);
+    dprintf(newFileDescriptor, "Link count: %ld\n", (long)fileStat.st_nlink);
+    dprintf(newFileDescriptor, "User access rights: %s\n", userPermissions);
+    dprintf(newFileDescriptor, "Group access rights: R--\n");
+    dprintf(newFileDescriptor, "Others access rights: ---\n");
+
+    close(newFileDescriptor);
+    close(fileDescriptor);
+}
 
 int main(int argc, char *argv[]) {
     if (argc != 3) {
-        perror("Eroare numar de argumente");
+        perror("Error, incorrect number of arguments");
         exit(EXIT_FAILURE);
     }
 
-    char *input_directory = argv[1];
-    char *output_directory=argv[2];
+    char *inputDirectory = argv[1];
+    char *outputDirectory = argv[2];
 
- 
-  
-    //deschidere director iesire
-    if (mkdir(output_directory, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != 0 && errno != EEXIST) {
-        perror("Eroare la crearea directorului de ieșire");
-        exit(EXIT_FAILURE);
-    }
+    DIR *dir = opendir(inputDirectory );
 
-    //deschidere director intrare
-    DIR *dir = opendir(input_directory);
     if (dir == NULL) {
-        perror("Eroare deschidere director de intrare");
+        perror("Error opening input directory");
+        exit(EXIT_FAILURE);
+    }
+
+    // Create output directory if it does not exist
+    if (mkdir(outputDirectory, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != 0 && errno != EEXIST) {
+        perror("Error creating output directory");
         exit(EXIT_FAILURE);
     }
 
     struct dirent *entry;
+
     while ((entry = readdir(dir)) != NULL) {
-      if (entry->d_type == DT_REG)
-	{
-	pid_t pid = fork();
-	if (pid == -1) {
-	  perror("Eroare la fork");
-	  exit(EXIT_FAILURE);	  
-	}
-	else if (pid == 0) {
-	  //fiu
-	  char input_path[PATH_MAX];
-	  char output_path[PATH_MAX];
+        char inputPath[PATH_MAX];
+        snprintf(inputPath, PATH_MAX, "%s/%s", inputDirectory , entry->d_name);
 
-	  
-	  snprintf(input_path, PATH_MAX, "%s/%s", input_directory, entry->d_name);
-	  snprintf(output_path, PATH_MAX, "%s/%s_statistica.txt", output_directory, entry->d_name);
+        if (entry->d_type == DT_REG || entry->d_type == DT_LNK) 
+        {
 
-	  //deschidere statistica
-	  int stats_fd = open(output_path, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
-	  if (stats_fd == -1) {
-	    perror("Error creating the statistics file");
-	    exit(EXIT_FAILURE);
-}
+            pid_t pid = fork();
 
-	   if (strstr(entry->d_name, ".bmp") != NULL) {
-          
-                    pid_t bmp_pid = fork();
-                    if (bmp_pid == -1) {
-                        perror("Eroare la fork pentru imaginea BMP");
-                        exit(EXIT_FAILURE);
-                    } else if (bmp_pid == 0) {
-                        //fiu
-		      // convert_to_grayscale(input_path, output_path);
-                        exit(EXIT_SUCCESS);
-                    }
-                }
+          if (pid == -1) 
+            {
+                perror("Error forking");
+                exit(EXIT_FAILURE);
+            } 
+          else if (pid == 0) 
+            {
+                // Child
+                process_file(inputPath, outputDirectory);
+                exit(0);
+            }
 
-	   
+            int status;
+            waitpid(pid, &status, 0);
 
-//deschidre bmp
-    int fd = open(input_path, O_RDONLY);
-    if (fd == -1) {
-        perror("Eroare la deschiderea fisierului");
-    }
-
-int fo = open(output_path, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
-    if (fo == -1) {
-        perror("Eroare la deschiderea fisierului");
-    }
-    
-    struct BMPHeader bmp_header;
-    
-    //citire header
-    if (read(fd, &bmp_header, sizeof(bmp_header)) != sizeof(bmp_header)) {
-        perror("Eroare la citirea header-ului BMP");
-        close(fd);
-    }
-
-    //informatii header
-    int height = bmp_header.height;
-    int width = bmp_header.width;
-    int file_size = bmp_header.file_size;
-    int user_id = getuid();
-
-   
-    close(fd);
-
-    time_t modification_time = bmp_header.data_offset; 
-    struct tm *modification_tm = localtime(&modification_time);
-    char time_str[20];
-    strftime(time_str, sizeof(time_str), "%d.%m.%Y", modification_tm);
-
-
-    char user_permissions[10];
-    get_permissions(S_IRUSR | S_IWUSR | S_IXUSR, user_permissions);
-    
-    //ce scriem in statistica.txt
-    dprintf(stats_fd, "nume fisier: %s\n", output_path);
-    dprintf(stats_fd, "inaltime: %d\n", height);
-    dprintf(stats_fd, "lungime: %d\n", width);
-    dprintf(stats_fd, "dimensiune: %d\n", file_size);
-    dprintf(stats_fd, "identificatorul utilizatorului: %d\n", user_id);
-    dprintf(stats_fd, "timpul ultimei modificari: %s\n", time_str);
-    dprintf(stats_fd, "contorul de legaturi: %ld\n", (long)file_size); 
-    dprintf(stats_fd, "drepturi de acces user: %s\n", user_permissions);
-    dprintf(stats_fd, "drepturi de acces grup: R--\n");
-    dprintf(stats_fd, "drepturi de acces altii: ---\n");
- 
-
-    close(stats_fd);
-    exit(EXIT_SUCCESS);
-
-	  
-	}}}
-  
-
-
-    //asteptare fii
-    int status;
-    while (waitpid(-1, &status, 0) > 0) {
-        if (WIFEXITED(status)) {
-            printf("S-a încheiat procesul cu pid-ul %d și codul %d\n", getpid(), WEXITSTATUS(status));
+            if (WIFEXITED(status)) {
+                printf("Process with PID %d exited with code %d\n", pid, WEXITSTATUS(status));
+            }
         }
     }
 
     closedir(dir);
-    
+
     return 0;
 }
+
