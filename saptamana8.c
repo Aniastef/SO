@@ -47,9 +47,10 @@ void get_permissions(mode_t mode, char *str) {
     str[9] = '\0';
 }
 
-void convertToGrayscale(const char *inputPath, const char *outputPath) {
+void convertToGrayscale(const char *inputPath) {
  int readHeader;
-    //
+ 
+
     int inputFile = open(inputPath, O_RDONLY);
 
     if (inputFile== -1) {
@@ -57,11 +58,15 @@ void convertToGrayscale(const char *inputPath, const char *outputPath) {
         exit(EXIT_FAILURE);
     }
     
-    printf("%s",inputPath);
-
     
+ 
+
+ 
+
    
-int outputFile=creat("fisiernou.bmp", S_IRUSR | S_IWUSR);
+int outputFile = open("fisiernou.bmp", O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+
+
     if (outputFile== -1) {
         perror("Error creating output file for conversion");
         close(inputFile);
@@ -93,8 +98,6 @@ int outputFile=creat("fisiernou.bmp", S_IRUSR | S_IWUSR);
     }
 
 
-    
-    write(outputFile, &infoHeader, sizeof(InfoHeader));
 
     int imageSize = infoHeader.width * infoHeader.height;
 
@@ -113,7 +116,7 @@ int outputFile=creat("fisiernou.bmp", S_IRUSR | S_IWUSR);
     close(inputFile);
     close(outputFile);
 
-    printf("\n Grayscale conversion for %s successful\n", inputPath);
+    printf("\n grayscale conversion for %s successful\n", inputPath);
 }
 
 void process_file(char *inputPath, char *outputDirectory) {
@@ -207,7 +210,7 @@ newFileDescriptor = open(statOutputPath, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR |
             {
            
                 close(newFileDescriptor);  
-                convertToGrayscale(inputPath,outputDirectory);
+                convertToGrayscale(inputPath);
                 exit(0);
             }
         }
@@ -237,7 +240,7 @@ newFileDescriptor = open(statOutputPath, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR |
     int userId = getuid();
 
     char userPermissions[10];
-    get_permissions(S_IRUSR | S_IWUSR | S_IXUSR, userPermissions);
+   get_permissions(fileStat.st_mode, userPermissions);
 
     dprintf(newFileDescriptor, "File name: %s\n", inputPath);
     dprintf(newFileDescriptor, "Height: %d\n", infoHeader.height);
