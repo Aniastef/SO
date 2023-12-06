@@ -1,0 +1,10 @@
+119908340120682496103079280640File name: unu/fisierr (copy).bmp
+Height: 103079280640
+Width: 119908340120682496
+File size: 818058
+User ID: 1000
+Last modification time: 05.04.1970
+Link count: 1
+User access rights: RW-RW-R--
+Group access rights: R--
+Others access rights: ---

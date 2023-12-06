@@ -140,36 +140,33 @@ struct stat fileStat;
 
 
 
-   if (strstr(inputPath, ".bmp")) {
+  if (strstr(inputPath, ".bmp")) {
    
  
- long int fileSize=infoHeader.width*infoHeader.height;
- 
 printf("%ld %ld",infoHeader.width,infoHeader.height);
-lseek(fileDescriptor, header.dataOffset, SEEK_SET);
+lseek(fileDescriptor, 54, SEEK_SET);
 
+	unsigned char pixel[3];
 
-    for (int i = 0; i < fileSize; ++i) {
-        unsigned char pixel[3];
-        read(fileDescriptor, pixel, sizeof(pixel));
-	
-        //formula
-        unsigned char grayValue = (unsigned char)(0.299 * pixel[0] + 0.587 * pixel[1] + 0.114 * pixel[2]);
+    while (read(fileDescriptor, pixel, 3) == 3)
+{
 
-      lseek(fileDescriptor, -sizeof(pixel), SEEK_CUR);
-       // write(outputFile, &grayValue, sizeof(grayValue));
-	write(fileDescriptor, &grayValue, sizeof(grayValue));
+	unsigned char grayValue = (unsigned char)(0.299 * pixel[2] + 0.587 * pixel[1] + 0.114 * pixel[0]);
 
-    }
-
+	lseek(fileDescriptor, -3, SEEK_CUR);
+	unsigned char grayPixel[3] = {grayValue, grayValue, grayValue};
+	write(fileDescriptor, grayPixel, 3);
+}
    
    // close(inputFile);
    // close(outputFile);
    close(fileDescriptor);
 
-    printf("\n Conversia la gri pentru fisierul %s a fost facuta \n", inputPath);
+  printf("\n Conversia la gri pentru fisierul %s a fost facuta \n", inputPath);
     }
 }
+
+
 
 void process_file(char *inputPath, char *outputDirectory) {
     char buffer[100000];

@@ -104,7 +104,7 @@ struct stat fileStat;
    if (strstr(inputPath, ".bmp")) {
    
  
-printf("%ld %ld",infoHeader.width,infoHeader.height);
+
 lseek(fileDescriptor, 54, SEEK_SET);
 
 	unsigned char pixel[3];
@@ -123,7 +123,7 @@ lseek(fileDescriptor, 54, SEEK_SET);
    // close(outputFile);
    close(fileDescriptor);
 
-  printf("\n Conversia la gri pentru fisierul %s a fost facuta \n", inputPath);
+  printf("Conversia la gri pentru fisierul %s a fost facuta \n", inputPath);
     }
 }
 
@@ -223,10 +223,10 @@ newFileDescriptor = open(statOutputPath, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR |
             }
         }
 
-        sprintf(buffer, "xPixelsPerM: %d \n", infoHeader.xPixelsPerM);
-        write(newFileDescriptor, buffer, strlen(buffer));
-        sprintf(buffer, "yPixelsPerM: %d \n", infoHeader.yPixelsPerM);
-        write(newFileDescriptor, buffer, strlen(buffer));
+        //sprintf(buffer, "xPixelsPerM: %d \n", infoHeader.xPixelsPerM);
+        //write(newFileDescriptor, buffer, strlen(buffer));
+        //sprintf(buffer, "yPixelsPerM: %d \n", infoHeader.yPixelsPerM);
+       // write(newFileDescriptor, buffer, strlen(buffer));
 
         printf("Detalii salvate in fisierul statistica.txt\n");
 
@@ -234,8 +234,8 @@ newFileDescriptor = open(statOutputPath, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR |
         int status;
         waitpid(-1, &status, 0);
 
-        if (WIFEXITED(status)) {
-            printf("S-a incheiat procesul cu codul %d\n", WEXITSTATUS(status));
+      if (WIFEXITED(status)) {
+       printf("S-a incheiat procesul cu codul %d\n", WEXITSTATUS(status));
 
             
     }
@@ -308,7 +308,8 @@ int main(int argc, char *argv[]) {
             } 
           else if (pid == 0) 
             {
-                // Child
+                //copil
+                printf("\n");
                 process_file(inputPath, outputDirectory);
                 exit(0);
             }
