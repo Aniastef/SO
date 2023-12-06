@@ -1,0 +1,10 @@
+nume fisier: fisierr.bmp
+inaltime: 27918336
+lungime: 41943040
+dimensiune: 2072661314
+identificatorul utilizatorului: 1000
+timpul ultimei modificari: 15.04.1970
+contorul de legaturi: 2072661314
+drepturi de acces user: RWX------
+drepturi de acces grup: R--
+drepturi de acces altii: ---

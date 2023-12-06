@@ -1,0 +1,12 @@
+xPixelsPerM: 4541513 
+yPixelsPerM: 257 
+File name: directorso/pexels-katie-burandt-1212693.jpg
+Height: 5066358610964202313
+Width: 6344695559902742528
+File size: 776355
+User ID: 1000
+Last modification time: 12.04.2008
+Link count: 1
+User access rights: RW-RW-R--
+Group access rights: R--
+Others access rights: ---

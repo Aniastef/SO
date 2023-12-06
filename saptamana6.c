@@ -41,7 +41,7 @@ int main(int argc, char *argv[]) {
 
     char *input_file = argv[1];
 
-    //deschidere bmp
+    //deschidere fisier
     int fd = open(input_file, O_RDONLY);
     if (fd == -1) {
         perror("Eroare la deschiderea fisierului");
@@ -49,12 +49,15 @@ int main(int argc, char *argv[]) {
     }
 
     //citire header 
+    
     struct BMPHeader bmp_header;
+    
     if (read(fd, &bmp_header, sizeof(bmp_header)) != sizeof(bmp_header)) {
         perror("Eroare la citirea header-ului BMP");
         close(fd);
         exit(EXIT_FAILURE);
     }
+    
 
     //informatii header
     int height = bmp_header.height;
@@ -68,9 +71,10 @@ int main(int argc, char *argv[]) {
     char time_str[20];
     strftime(time_str, sizeof(time_str), "%d.%m.%Y", modification_tm);
 
-    close(fd);
+    close(fd);//inchidem fisierul
 
-    // creare fisier statistica.txt
+
+    // creare fisier statistica.txt daca nu exista
     int stats_fd = open("statistica.txt", O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
     if (stats_fd == -1) {
         perror("Eroare la crearea fisierului de statistici");

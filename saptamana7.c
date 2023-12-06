@@ -6,16 +6,24 @@
 #include <sys/types.h>
 #include <dirent.h>
 #include <unistd.h>
+#include <sys/wait.h>
+#include <errno.h>
 #include <time.h>
+#include <limits.h>
 
+typedef struct {
+    long int width;
+    long int height;
+    int xPixelsPerM;
+    int yPixelsPerM;
+}InfoHeader;
 
-struct BMPHeader {
-    int file_size;
-    int data_offset;
-    int header_size;
-    int width;
-    int height;
-};
+typedef struct{
+int signature;
+int fileSize;
+int reserved;
+int dataOffset;
+}Header;
 
 void get_permissions(mode_t mode, char *str) {
     str[0] = (mode & S_IRUSR) ? 'R' : '-';
@@ -30,104 +38,145 @@ void get_permissions(mode_t mode, char *str) {
     str[9] = '\0';
 }
 
-void process_file(const char *filename, int stats_fd) {
+
+void process_file(char *inputPath) {
   
-  //deschidre bmp
-    int fd = open(filename, O_RDONLY);
-    if (fd == -1) {
-        perror("Eroare la deschiderea fisierului");
-        return;
+    int readHeader;
+    int fileDescriptor;
+    int newFileDescriptor;
+    struct stat fileStat;
+
+  fileDescriptor= open(inputPath, O_RDWR);
+
+    if (fileDescriptor == -1) {
+        perror("Nu s-a putut deschide fisierul de intrare");
+        exit(EXIT_FAILURE);
     }
 
-    struct BMPHeader bmp_header;
+    Header header;
+    InfoHeader infoHeader;
+
+    readHeader = read(fileDescriptor, &header, sizeof(Header));
+
+    if (readHeader == -1) {
+        perror("Nu s-a putut citi antetul");
+        close(fileDescriptor);
+        exit(EXIT_FAILURE);
+    }
     
-    //citire header
-    if (read(fd, &bmp_header, sizeof(bmp_header)) != sizeof(bmp_header)) {
-        perror("Eroare la citirea header-ului BMP");
-        close(fd);
-        return;
+    readHeader= read(fileDescriptor, &infoHeader, sizeof(InfoHeader));
+
+    if (readHeader == -1) {
+        perror("Eroare la citirea informatiilor despre imagine");
+        close(fileDescriptor);
+        exit(-1);
     }
-
-    //informatii header
-    int height = bmp_header.height;
-    int width = bmp_header.width;
-    int file_size = bmp_header.file_size;
-    int user_id = getuid();
-
-   
-    close(fd);
-
-    time_t modification_time = bmp_header.data_offset; 
-    struct tm *modification_tm = localtime(&modification_time);
-    char time_str[20];
-    strftime(time_str, sizeof(time_str), "%d.%m.%Y", modification_tm);
-
-
-    char user_permissions[10];
-    get_permissions(S_IRUSR | S_IWUSR | S_IXUSR, user_permissions);
     
-    //ce scriem in statistica.txt
-    dprintf(stats_fd, "nume fisier: %s\n", filename);
-    dprintf(stats_fd, "inaltime: %d\n", height);
-    dprintf(stats_fd, "lungime: %d\n", width);
-    dprintf(stats_fd, "dimensiune: %d\n", file_size);
-    dprintf(stats_fd, "identificatorul utilizatorului: %d\n", user_id);
-    dprintf(stats_fd, "timpul ultimei modificari: %s\n", time_str);
-    dprintf(stats_fd, "contorul de legaturi: %ld\n", (long)file_size); 
-    dprintf(stats_fd, "drepturi de acces user: %s\n", user_permissions);
-    dprintf(stats_fd, "drepturi de acces grup: R--\n");
-    dprintf(stats_fd, "drepturi de acces altii: ---\n");
-}
+    newFileDescriptor = open("statistica.txt", O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
+    if (newFileDescriptor == -1) 
+    {
+        perror("Nu s-a putut crea fisierul statistica.txt");
+        close(newFileDescriptor);
+        exit(EXIT_FAILURE);
+    } 
+      else 
+    {
+    
+        stat(inputPath, &fileStat); //se stocheaza informtii despre fisierul bmp in filestat
 
+  	time_t modificationTime = header.dataOffset;
+  	 struct tm *modificationTm = localtime(&modificationTime);
+   	char timeStr[20];
+   	strftime(timeStr, sizeof(timeStr), "%d.%m.%Y", modificationTm);
+   	 
+  
 
-void process_directory(const char *dirname, int stats_fd) {
-    struct stat dir_stat;
-    if (stat(dirname, &dir_stat) == -1) {
-        perror("Eroare la obtinerea informatiilor despre director");
-        return;
-    }
+    	int userId = getuid();
 
-    // Informatii director
-    dprintf(stats_fd, "nume director: %s\n", dirname);
-    dprintf(stats_fd, "identificatorul utilizatorului: %d\n", getuid());
-    dprintf(stats_fd, "drepturi de acces user: RWX\n");
-    dprintf(stats_fd, "drepturi de acces grup: R--\n");
-    dprintf(stats_fd, "drepturi de acces altii: ---\n");
+    	char userPermissions[10];
+   	get_permissions(fileStat.st_mode, userPermissions);
 
-    // Parcurgere director
-    DIR *dir = opendir(dirname);
-    if (dir == NULL) {
-        perror("Eroare deschidere director");
-        return;
-    }
+        if (S_ISREG(fileStat.st_mode)) 
+        {
+              if (strstr(inputPath, ".bmp")) 
+            {
+  
+		dprintf(newFileDescriptor, "nume fisier: %s\n", inputPath);
+		dprintf(newFileDescriptor, "inaltime: %ld\n", (long)fileStat.st_size);
+		dprintf(newFileDescriptor, "lungime: %ld\n", (long)fileStat.st_size);
+		dprintf(newFileDescriptor, "dimensiune: %ld\n", fileStat.st_size);
+		dprintf(newFileDescriptor, "identificatorul utilizatorului: %d\n", userId);
+		dprintf(newFileDescriptor, "timpul ultimei modificari: %s\n", timeStr);
+		dprintf(newFileDescriptor, "contorul de legaturi: %ld\n",(long)fileStat.st_nlink);
+		dprintf(newFileDescriptor, "drepturi de acces user: %s\n", userPermissions);
+		dprintf(newFileDescriptor, "drepturi de acces grup: R--\n");
+		dprintf(newFileDescriptor, "drepturi de acces altii: ---\n");
 
-    struct dirent *entry;
-    while ((entry = readdir(dir)) != NULL) {
-        char path[PATH_MAX];
+            } 
+    	     else 
+            {
+                dprintf(newFileDescriptor, "nume fisier: %s\n", inputPath);
+		dprintf(newFileDescriptor, "inaltime: %ld\n", (long)fileStat.st_size);
+		dprintf(newFileDescriptor, "lungime: %ld\n", (long)fileStat.st_size);
+		dprintf(newFileDescriptor, "dimensiune: %ld\n", fileStat.st_size);
+		dprintf(newFileDescriptor, "identificatorul utilizatorului: %d\n", userId);
+		dprintf(newFileDescriptor, "timpul ultimei modificari: %s\n", timeStr);
+		dprintf(newFileDescriptor, "contorul de legaturi: %ld\n",(long)fileStat.st_nlink);
+		dprintf(newFileDescriptor, "drepturi de acces user: %s\n", userPermissions);
+		dprintf(newFileDescriptor, "drepturi de acces grup: R--\n");
+		dprintf(newFileDescriptor, "drepturi de acces altii: ---\n");
+      
+   	     } 	
+        }
+    else if (S_ISDIR(fileStat.st_mode)) 
+        {
+		dprintf(newFileDescriptor, "nume director: %s\n", inputPath);
+		dprintf(newFileDescriptor, "identificatorul utilizatorului: %d\n", userId);
+		dprintf(newFileDescriptor, "drepturi de acces user: %s\n", userPermissions);
+		dprintf(newFileDescriptor, "drepturi de acces grup: R--\n");
+		dprintf(newFileDescriptor, "drepturi de acces altii: ---\n");
+       	
+         } 
+    else if (S_ISLNK(fileStat.st_mode)) 
+         {
+        	char targetPath[PATH_MAX];
+        	ssize_t targetSize = readlink(inputPath, targetPath, sizeof(targetPath) - 1);
         
-	snprintf(path, PATH_MAX, "%s/%s", dirname, entry->d_name);
+	       	 if (targetSize == -1)
+		{
+		  perror("Nu se pot citi informatii despre legatura simboligca");
+		  exit(EXIT_FAILURE);
+		
+		}
+		targetPath[targetSize] = '\0';
 
-        if (entry->d_type == DT_REG && strstr(entry->d_name, ".bmp") != NULL)
-	{
-	  // .bmp
-            process_file(path, stats_fd);
-        }
-	
-	else if (entry->d_type == DT_REG)
-	  
-	 {
-            //fisier care nu e .bmp
-            process_file(path, stats_fd);
-        }
-	
-	else if (entry->d_type == DT_DIR && strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0)
-	 
- 
-    }
+		struct stat targetStat;
+		
+		if (lstat(targetPath, &targetStat) == -1) 
+		{
+		  perror("Nu s-au putut citi informatiile despre fisier");
+		  exit(EXIT_FAILURE);
+		}
+		
+		dprintf(newFileDescriptor, "nume legatura: %s\n", inputPath);
+		dprintf(newFileDescriptor, "dimensiune: %ld\n", (long)fileStat.st_size);
+		dprintf(newFileDescriptor, "dimensiune fisier: %ld\n", (long)targetStat.st_size);
+    	
+         }
+   }
 
-    closedir(dir);
+    close(newFileDescriptor);
+    close(fileDescriptor);
 }
+
+
+
+
+  
+
+
+
 
 
 int main(int argc, char *argv[]) {
@@ -136,35 +185,39 @@ int main(int argc, char *argv[]) {
         exit(EXIT_FAILURE);
     }
 
-    char *input_path = argv[1];
+    char *inputDirectory = argv[1];
+    
+   DIR *dir = opendir(inputDirectory);
 
-    //deschidere statistica
+    if (dir == NULL) {
+        perror("Nu se poate deschide directorul de intrare");
+        exit(EXIT_FAILURE);
+    }
+
+    //deschidere sau creare statistica daca nu exista
     int stats_fd = open("statistica.txt", O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
     if (stats_fd == -1) {
-        perror("Eroare la crearea fisierului de statistici");
+        perror("Eroare la crearea fisierului de statistica");
         exit(EXIT_FAILURE);
     }
 
-    //procesare input
-    struct stat input_stat;
-    if (stat(input_path, &input_stat) == -1) {
-        perror("Eroare la obtinerea informatiilor despre input");
-        close(stats_fd);
-        exit(EXIT_FAILURE);
-    }
 
-    if (S_ISREG(input_stat.st_mode)) {
-      //daca e fisier normal
-        process_file(input_path, stats_fd);
-    } else if (S_ISDIR(input_stat.st_mode)) {
-        //daca e director
-        process_directory(input_path, stats_fd);
-    } else {
-        perror("Eroare input: nu e fisier normal nici director");
-    }
+   struct dirent *entry;
 
+    while ((entry = readdir(dir)) != NULL) {
+        char inputPath[PATH_MAX];
+        snprintf(inputPath, PATH_MAX, "%s/%s", inputDirectory , entry->d_name);
 
-    close(stats_fd);
+        if (entry->d_type == DT_REG || entry->d_type == DT_LNK) 
+        {
+
+           	process_file(inputPath);
+           	exit(0);
+         }
+   
+}
+
+    closedir(dir);
 
     return 0;
 }

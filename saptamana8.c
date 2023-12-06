@@ -54,7 +54,7 @@ void convertToGrayscale(const char *inputPath) {
     int fileDescriptor = open(inputPath, O_RDWR);
 
     if (fileDescriptor== -1) {
-        perror("Error opening input file for conversion");
+        perror("Nu se poate deschide fisierul de intrare");
         exit(EXIT_FAILURE);
     }
     
@@ -81,7 +81,7 @@ struct stat fileStat;
   readHeader = read(fileDescriptor, &header, sizeof(Header));
 
     if (readHeader== -1) {
-        perror("Error reading header for conversion");
+        perror("Nu s-a putut citi antetul");
         //close(inputFile);
         //close(outputFile);
         close(fileDescriptor);
@@ -92,7 +92,7 @@ struct stat fileStat;
   readHeader = read(fileDescriptor, &infoHeader, sizeof(InfoHeader));
 
     if (readHeader== -1) {
-        perror("Error reading header for conversion");
+        perror("Nu s-a putut citi antetul");
        // close(inputFile);
         //close(outputFile);
           close(fileDescriptor);
@@ -104,31 +104,26 @@ struct stat fileStat;
    if (strstr(inputPath, ".bmp")) {
    
  
- long int fileSize=infoHeader.width*infoHeader.height;
- 
 printf("%ld %ld",infoHeader.width,infoHeader.height);
-lseek(fileDescriptor, header.dataOffset, SEEK_SET);
+lseek(fileDescriptor, 54, SEEK_SET);
 
+	unsigned char pixel[3];
 
-    for (int i = 0; i < fileSize; ++i) {
-        unsigned char pixel[3];
-        read(fileDescriptor, pixel, sizeof(pixel));
-	
-        //formula
-        unsigned char grayValue = (unsigned char)(0.299 * pixel[0] + 0.587 * pixel[1] + 0.114 * pixel[2]);
+    while (read(fileDescriptor, pixel, 3) == 3)
+{
 
-      lseek(fileDescriptor, -sizeof(pixel), SEEK_CUR);
-       // write(outputFile, &grayValue, sizeof(grayValue));
-	write(fileDescriptor, &grayValue, sizeof(grayValue));
+	unsigned char grayValue = (unsigned char)(0.299 * pixel[2] + 0.587 * pixel[1] + 0.114 * pixel[0]);
 
-    }
-
+	lseek(fileDescriptor, -3, SEEK_CUR);
+	unsigned char grayPixel[3] = {grayValue, grayValue, grayValue};
+	write(fileDescriptor, grayPixel, 3);
+}
    
    // close(inputFile);
    // close(outputFile);
    close(fileDescriptor);
 
-    printf("\n grayscale conversion for %s successful\n", inputPath);
+  printf("\n Conversia la gri pentru fisierul %s a fost facuta \n", inputPath);
     }
 }
 
@@ -142,7 +137,7 @@ void process_file(char *inputPath, char *outputDirectory) {
     fileDescriptor= open(inputPath, O_RDWR);
 
     if (fileDescriptor == -1) {
-        perror("Error opening file");
+        perror("Nu s-a putut deschide fisierul de intrare");
         exit(EXIT_FAILURE);
     }
 
@@ -152,7 +147,7 @@ void process_file(char *inputPath, char *outputDirectory) {
     readHeader = read(fileDescriptor, &header, sizeof(Header));
 
     if (readHeader == -1) {
-        perror("Error reading header");
+        perror("Nu s-a putut citi antetul");
         close(fileDescriptor);
         exit(EXIT_FAILURE);
     }
@@ -175,7 +170,7 @@ stat(inputPath, &fileStat);
 DIR *outputDir = opendir(outputDirectory);
 
 if (outputDir == NULL) {
-    perror("Error opening output directory");
+    perror("Nu s-a putut deschide directorul de iesire");
     close(fileDescriptor);
     exit(EXIT_FAILURE);
 } 
@@ -194,7 +189,7 @@ newFileDescriptor = open(statOutputPath, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR |
 
     if (newFileDescriptor == -1) 
     {
-        perror("Error creating statistica.txt file");
+        perror("Nu s-a putut crea fisierul statistica.txt");
         close(fileDescriptor);
         exit(EXIT_FAILURE);
     } 
@@ -216,15 +211,14 @@ newFileDescriptor = open(statOutputPath, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR |
 
             if (grayPid == -1) 
             {
-                perror("Error creating child process for grayscale conversion");
+                perror("Eroare la crearea unui proces fiu pentru conversia in tonuri de gri");
                 exit(EXIT_FAILURE);
             } 
             else if (grayPid == 0) 
             {
            
                 close(newFileDescriptor);  
-                //face ceva dar STA FOARTE MULT si nu stiu dc
-               //convertToGrayscale(inputPath);
+               convertToGrayscale(inputPath);
                 exit(0);
             }
         }
@@ -234,13 +228,15 @@ newFileDescriptor = open(statOutputPath, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR |
         sprintf(buffer, "yPixelsPerM: %d \n", infoHeader.yPixelsPerM);
         write(newFileDescriptor, buffer, strlen(buffer));
 
-        printf("Information saved in statistica.txt\n");
+        printf("Detalii salvate in fisierul statistica.txt\n");
+
         
         int status;
         waitpid(-1, &status, 0);
 
         if (WIFEXITED(status)) {
-            printf("Child process exited with code %d\n", WEXITSTATUS(status));
+            printf("S-a incheiat procesul cu codul %d\n", WEXITSTATUS(status));
+
             
     }
 }
@@ -274,7 +270,7 @@ newFileDescriptor = open(statOutputPath, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR |
 
 int main(int argc, char *argv[]) {
     if (argc != 3) {
-        perror("Error, incorrect number of arguments");
+        perror("Numar incorect de argumente");
         exit(EXIT_FAILURE);
     }
 
@@ -284,13 +280,13 @@ int main(int argc, char *argv[]) {
     DIR *dir = opendir(inputDirectory );
 
     if (dir == NULL) {
-        perror("Error opening input directory");
+        perror("Nu se poate deschide directorul de intrare");
         exit(EXIT_FAILURE);
     }
 
     // Create output directory if it does not exist
     if (mkdir(outputDirectory, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != 0 && errno != EEXIST) {
-        perror("Error creating output directory");
+        perror("Nu se poate crea directorul de iesire");
         exit(EXIT_FAILURE);
     }
 
@@ -307,7 +303,7 @@ int main(int argc, char *argv[]) {
 
           if (pid == -1) 
             {
-                perror("Error forking");
+                perror("Eroare la fork");
                 exit(EXIT_FAILURE);
             } 
           else if (pid == 0) 
@@ -323,7 +319,8 @@ int main(int argc, char *argv[]) {
             waitpid(pid, &status, 0);
 
             if (WIFEXITED(status)) {
-                printf("Process with PID %d exited with code %d\n", pid, WEXITSTATUS(status));
+                printf("S-a încheiat procesul cu pid-ul %d si codul %d\n", pid, WEXITSTATUS(status));
+
         }
       }
     }

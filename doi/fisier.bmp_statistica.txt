@@ -1,0 +1,12 @@
+119908340120682496103079280640xPixelsPerM: 2063597568 
+yPixelsPerM: 12 
+File name: unu/fisier.bmp
+Height: 103079280640
+Width: 119908340120682496
+File size: 8126462
+User ID: 1000
+Last modification time: 05.04.1970
+Link count: 1
+User access rights: RW-RW-R--
+Group access rights: R--
+Others access rights: ---
