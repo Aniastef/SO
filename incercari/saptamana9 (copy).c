@@ -128,13 +128,16 @@ lseek(fileDescriptor, 54, SEEK_SET);
 
 void process_file(char *inputPath, char *outputDirectory) {
   
+   int writtenLines = 0;
     int readHeader;
     int fileDescriptor;
     int newFileDescriptor;
-    int nrLinesWritten = 0;
+
 
     fileDescriptor= open(inputPath, O_RDWR);
 
+    
+    fileDescriptor= open(inputPath, O_RDWR);
     if (fileDescriptor == -1) {
         perror("Nu s-a putut deschide fisierul de intrare");
         exit(EXIT_FAILURE);
@@ -233,13 +236,11 @@ void process_file(char *inputPath, char *outputDirectory) {
 			dprintf(newFileDescriptor, "drepturi de acces user: %s\n", userPermissions);
 			dprintf(newFileDescriptor, "drepturi de acces grup: R--\n");
 			dprintf(newFileDescriptor, "drepturi de acces altii: ---\n");
-
+			writtenLines+=10;
 		    } 
 	    	     else 
 		    {
 		        dprintf(newFileDescriptor, "nume fisier: %s\n", inputPath);
-			dprintf(newFileDescriptor, "inaltime: %ld\n", (long)fileStat.st_size);
-			dprintf(newFileDescriptor, "lungime: %ld\n", (long)fileStat.st_size);
 			dprintf(newFileDescriptor, "dimensiune: %ld\n", fileStat.st_size);
 			dprintf(newFileDescriptor, "identificatorul utilizatorului: %d\n", userId);
 			dprintf(newFileDescriptor, "timpul ultimei modificari: %s\n", timeStr);
@@ -247,7 +248,10 @@ void process_file(char *inputPath, char *outputDirectory) {
 			dprintf(newFileDescriptor, "drepturi de acces user: %s\n", userPermissions);
 			dprintf(newFileDescriptor, "drepturi de acces grup: R--\n");
 			dprintf(newFileDescriptor, "drepturi de acces altii: ---\n");
-	      
+			
+	      		writtenLines+=8;
+	      		
+	      		
 	   	     } 	
 		}
 	    else if (S_ISDIR(fileStat.st_mode)) 
@@ -258,6 +262,7 @@ void process_file(char *inputPath, char *outputDirectory) {
 			dprintf(newFileDescriptor, "drepturi de acces grup: R--\n");
 			dprintf(newFileDescriptor, "drepturi de acces altii: ---\n");
 	       	
+	       	writtenLines+=5;
 		 } 
 	    else if (S_ISLNK(fileStat.st_mode)) 
 		 {
@@ -283,10 +288,10 @@ void process_file(char *inputPath, char *outputDirectory) {
 			dprintf(newFileDescriptor, "nume legatura: %s\n", inputPath);
 			dprintf(newFileDescriptor, "dimensiune: %ld\n", (long)fileStat.st_size);
 			dprintf(newFileDescriptor, "dimensiune fisier: %ld\n", (long)targetStat.st_size);
+			writtenLines+=3;
 	    	
 		 }
-		 nrLinesWritten++;
-		 exit(nrLinesWritten);
+		 exit(0);
 	   }
 	   
     int statusStatChild;
@@ -294,11 +299,8 @@ void process_file(char *inputPath, char *outputDirectory) {
 
     if (WIFEXITED(statusStatChild)) 
     {
-            int linesWrittenByChild = WEXITSTATUS(statusStatChild);
-
+    	dprintf(newFileDescriptor,"s-au scris %d linii de catre proces\n",writtenLines); 
         printf("S-a încheiat procesul pentru statistici cu pid-ul %d și codul %d\n",statChildPid, WEXITSTATUS(statusStatChild));
-                nrLinesWritten += linesWrittenByChild;  
-
     }
 
     if (strstr(inputPath, ".bmp")) 
@@ -326,9 +328,6 @@ void process_file(char *inputPath, char *outputDirectory) {
             printf("S-a încheiat procesul pentru conversie la gri cu pid-ul %d și codul %d\n", bmpChildPid, WEXITSTATUS(statusBmpChild));
         }
     }
-    
-     dprintf(newFileDescriptor, "Număr total de linii scrise: %d\n", nrLinesWritten);
-
 
     close(newFileDescriptor);
     close(fileDescriptor);
@@ -337,13 +336,15 @@ void process_file(char *inputPath, char *outputDirectory) {
 
 
 int main(int argc, char *argv[]) {
-    if (argc != 3) {
+    if (argc != 4) {
         perror("Numar incorect de argumente");
         exit(EXIT_FAILURE);
     }
+    
 
     char *inputDirectory = argv[1];
     char *outputDirectory = argv[2];
+    char c=argv[3][0];
 
     DIR *dir = opendir(inputDirectory );
 
@@ -388,6 +389,7 @@ int main(int argc, char *argv[]) {
             waitpid(pid, &status, 0);
 
             if (WIFEXITED(status)) {
+            
                 printf("S-a încheiat procesul cu pid-ul %d si codul %d\n", pid, WEXITSTATUS(status));
 
         }

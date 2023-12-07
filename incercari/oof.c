@@ -163,8 +163,7 @@ void process_file(char *inputPath, char *outputDirectory) {
     
 	struct stat fileStat;
 	stat(inputPath, &fileStat);
-	  
-
+	
 	   
 	DIR *outputDir = opendir(outputDirectory);
 
@@ -223,6 +222,13 @@ void process_file(char *inputPath, char *outputDirectory) {
 		      if (strstr(inputPath, ".bmp")) 
 		    {
 	  
+			int pipe_fd[2];
+			if (pipe(pipe_fd) == -1)
+			{
+				perror("Error creating pipe");
+				exit(EXIT_FAILURE);
+			}
+
 			dprintf(newFileDescriptor, "nume fisier: %s\n", inputPath);
 			dprintf(newFileDescriptor, "inaltime: %ld\n", (long)fileStat.st_size);
 			dprintf(newFileDescriptor, "lungime: %ld\n", (long)fileStat.st_size);
@@ -398,4 +404,3 @@ int main(int argc, char *argv[]) {
 
     return 0;
 }
-

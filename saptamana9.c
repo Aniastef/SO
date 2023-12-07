@@ -47,44 +47,6 @@ void get_permissions(mode_t mode, char *str) {
     str[9] = '\0';
 }
 
-void process_non_bmp_file(const char *filePath, int pipeWrite, char character) {
-    int fileDescriptor = open(filePath, O_RDONLY);
-
-    if (fileDescriptor == -1) {
-        perror("Nu se poate deschide fisierul de intrare");
-        exit(EXIT_FAILURE);
-    }
-
-    char buffer[100000];
-    ssize_t bytesRead;
-
-    while ((bytesRead = read(fileDescriptor, buffer, sizeof(buffer))) > 0) {
-        write(pipeWrite, buffer, bytesRead);
-    }
-
-    close(fileDescriptor);
-    close(pipeWrite);
-
-    exit(0);
-}
-
-void count_correct_sentences(int pipeRead, char character) {
-    char buffer[100000];
-    ssize_t bytesRead;
-    int count = 0;
-
-    while ((bytesRead = read(pipeRead, buffer, sizeof(buffer))) > 0) {
-        for (ssize_t i = 0; i < bytesRead; ++i) {
-            if (buffer[i] == '\n') {
-                ++count;
-            }
-        }
-    }
-
-    printf(" %d propozitii care contin caaracterul %c\n", count, character);
-    exit(0);
-}
-
 void convertToGrayscale(const char *inputPath) {
  int readHeader;
  
@@ -95,7 +57,6 @@ void convertToGrayscale(const char *inputPath) {
         perror("Nu se poate deschide fisierul de intrare");
         exit(EXIT_FAILURE);
     }
-    
     
     
  
@@ -140,10 +101,10 @@ struct stat fileStat;
 
 
 
-  if (strstr(inputPath, ".bmp")) {
+   if (strstr(inputPath, ".bmp")) {
    
  
-printf("%ld %ld",infoHeader.width,infoHeader.height);
+
 lseek(fileDescriptor, 54, SEEK_SET);
 
 	unsigned char pixel[3];
@@ -158,18 +119,16 @@ lseek(fileDescriptor, 54, SEEK_SET);
 	write(fileDescriptor, grayPixel, 3);
 }
    
-   // close(inputFile);
-   // close(outputFile);
+  
    close(fileDescriptor);
 
-  printf("\n Conversia la gri pentru fisierul %s a fost facuta \n", inputPath);
+  printf("Conversia la gri pentru fisierul %s a fost facuta \n", inputPath);
     }
 }
 
-
-
 void process_file(char *inputPath, char *outputDirectory) {
-    char buffer[100000];
+  
+   int writtenLines = 0;
     int readHeader;
     int fileDescriptor;
     int newFileDescriptor;
@@ -203,120 +162,187 @@ void process_file(char *inputPath, char *outputDirectory) {
     
     
     
-struct stat fileStat;
-stat(inputPath, &fileStat);
-  
+	struct stat fileStat;
+	stat(inputPath, &fileStat);
+	  
 
-   
-DIR *outputDir = opendir(outputDirectory);
+	   
+	DIR *outputDir = opendir(outputDirectory);
 
-if (outputDir == NULL) {
-    perror("Nu s-a putut deschide directorul de iesire");
-    close(fileDescriptor);
-    exit(EXIT_FAILURE);
-} 
+	if (outputDir == NULL) {
+	    perror("Nu s-a putut deschide directorul de iesire");
+	    close(fileDescriptor);
+	    exit(EXIT_FAILURE);
+	} 
 
-char statOutputPath[PATH_MAX];
-char *inputFileName = strrchr(inputPath, '/'); //tai doar numele fisierului sa nu fie toata calea
-if (inputFileName != NULL) {
-    inputFileName++;  //sar peste /
-} else {
-    inputFileName = inputPath; //daca n-am / inseamna ca-s deja in directorul ala
-}
-snprintf(statOutputPath, PATH_MAX, "%s/%s_statistica.txt", outputDirectory, inputFileName);
+	char statOutputPath[PATH_MAX];
+	char *inputFileName = strrchr(inputPath, '/'); //tai doar numele fisierului sa nu fie toata calea
+	if (inputFileName != NULL) {
+	    inputFileName++;  //sar peste /
+	} else {
+	    inputFileName = inputPath; //daca n-am / inseamna ca-s deja in directorul ala
+	}
+	snprintf(statOutputPath, PATH_MAX, "%s/%s_statistica.txt", outputDirectory, inputFileName);
 
 
-newFileDescriptor = open(statOutputPath, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+	newFileDescriptor = open(statOutputPath, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
-    if (newFileDescriptor == -1) 
+	    if (newFileDescriptor == -1) 
+	    {
+		perror("Nu s-a putut crea fisierul statistica.txt");
+		close(fileDescriptor);
+		exit(EXIT_FAILURE);
+	    } 
+	    
+	    
+		stat(inputPath, &fileStat); //se stocheaza informtii despre fisierul bmp in filestat
+
+	  	time_t modificationTime = header.dataOffset;
+	  	 struct tm *modificationTm = localtime(&modificationTime);
+	   	char timeStr[20];
+	   	strftime(timeStr, sizeof(timeStr), "%d.%m.%Y", modificationTm);
+	   	 
+	  
+
+	    	int userId = getuid();
+
+	    	char userPermissions[10];
+	   	get_permissions(fileStat.st_mode, userPermissions);
+	   	
+	   	pid_t statChildPid = fork();
+
+		if (statChildPid == -1) 
+		{
+	   	 perror("Eroare la fork pentru statistici");
+	    	 exit(EXIT_FAILURE);
+		} 
+		else if (statChildPid == 0) 
+		{
+
+		if (S_ISREG(fileStat.st_mode)) 
+		{
+		      if (strstr(inputPath, ".bmp")) 
+		    {
+	  
+			dprintf(newFileDescriptor, "nume fisier: %s\n", inputPath);
+			dprintf(newFileDescriptor, "inaltime: %ld\n", (long)fileStat.st_size);
+			dprintf(newFileDescriptor, "lungime: %ld\n", (long)fileStat.st_size);
+			dprintf(newFileDescriptor, "dimensiune: %ld\n", fileStat.st_size);
+			dprintf(newFileDescriptor, "identificatorul utilizatorului: %d\n", userId);
+			dprintf(newFileDescriptor, "timpul ultimei modificari: %s\n", timeStr);
+			dprintf(newFileDescriptor, "contorul de legaturi: %ld\n",(long)fileStat.st_nlink);
+			dprintf(newFileDescriptor, "drepturi de acces user: %s\n", userPermissions);
+			dprintf(newFileDescriptor, "drepturi de acces grup: R--\n");
+			dprintf(newFileDescriptor, "drepturi de acces altii: ---\n");
+			writtenLines+=10;
+		    } 
+	    	     else 
+		    {
+		        dprintf(newFileDescriptor, "nume fisier: %s\n", inputPath);
+			dprintf(newFileDescriptor, "dimensiune: %ld\n", fileStat.st_size);
+			dprintf(newFileDescriptor, "identificatorul utilizatorului: %d\n", userId);
+			dprintf(newFileDescriptor, "timpul ultimei modificari: %s\n", timeStr);
+			dprintf(newFileDescriptor, "contorul de legaturi: %ld\n",(long)fileStat.st_nlink);
+			dprintf(newFileDescriptor, "drepturi de acces user: %s\n", userPermissions);
+			dprintf(newFileDescriptor, "drepturi de acces grup: R--\n");
+			dprintf(newFileDescriptor, "drepturi de acces altii: ---\n");
+			
+	      		writtenLines+=8;
+	      		
+	      		
+	   	     } 	
+		}
+	    else if (S_ISDIR(fileStat.st_mode)) 
+		{
+			dprintf(newFileDescriptor, "nume director: %s\n", inputPath);
+			dprintf(newFileDescriptor, "identificatorul utilizatorului: %d\n", userId);
+			dprintf(newFileDescriptor, "drepturi de acces user: %s\n", userPermissions);
+			dprintf(newFileDescriptor, "drepturi de acces grup: R--\n");
+			dprintf(newFileDescriptor, "drepturi de acces altii: ---\n");
+	       	
+	       	writtenLines+=5;
+		 } 
+	    else if (S_ISLNK(fileStat.st_mode)) 
+		 {
+			char targetPath[PATH_MAX];
+			ssize_t targetSize = readlink(inputPath, targetPath, sizeof(targetPath) - 1);
+		
+		       	 if (targetSize == -1)
+			{
+			  perror("Nu se pot citi informatii despre legatura simboligca");
+			  exit(EXIT_FAILURE);
+			
+			}
+			targetPath[targetSize] = '\0';
+
+			struct stat targetStat;
+			
+			if (lstat(targetPath, &targetStat) == -1) 
+			{
+			  perror("Nu s-au putut citi informatiile despre fisier");
+			  exit(EXIT_FAILURE);
+			}
+			
+			dprintf(newFileDescriptor, "nume legatura: %s\n", inputPath);
+			dprintf(newFileDescriptor, "dimensiune: %ld\n", (long)fileStat.st_size);
+			dprintf(newFileDescriptor, "dimensiune fisier: %ld\n", (long)targetStat.st_size);
+			writtenLines+=3;
+	    	
+		 }
+		 exit(0);
+	   }
+	   
+    int statusStatChild;
+    waitpid(statChildPid, &statusStatChild, 0);
+
+    if (WIFEXITED(statusStatChild)) 
     {
-        perror("Nu s-a putut crea fisierul statistica.txt");
-        close(fileDescriptor);
-        exit(EXIT_FAILURE);
-    } 
-    else 
+    	dprintf(newFileDescriptor,"s-au scris %d linii de catre proces\n",writtenLines); 
+        printf("S-a încheiat procesul pentru statistici cu pid-ul %d și codul %d\n",statChildPid, WEXITSTATUS(statusStatChild));
+    }
+
+    if (strstr(inputPath, ".bmp")) 
     {
-    
-        stat(inputPath, &fileStat); //se stocheaza informtii despre fisierul bmp in filestat
+        pid_t bmpChildPid = fork();
 
-
-
-        if (S_ISREG(fileStat.st_mode) && strstr(inputPath, ".bmp")) 
+        if (bmpChildPid == -1) 
         {
-            sprintf(buffer, "%ld", infoHeader.width);
-            write(newFileDescriptor, buffer, strlen(buffer));
-            sprintf(buffer, "%ld", infoHeader.height);
-            write(newFileDescriptor, buffer, strlen(buffer));
-
-            pid_t grayPid = fork();
-
-            if (grayPid == -1) 
-            {
-                perror("Eroare la crearea unui proces fiu pentru conversia in tonuri de gri");
-                exit(EXIT_FAILURE);
-            } 
-            else if (grayPid == 0) 
-            {
-           
-                close(newFileDescriptor);  
-                //face ceva dar STA FOARTE MULT si nu stiu dc
-               //convertToGrayscale(inputPath);
-                exit(0);
-            }
+            perror("Eroare la fork pentru conversie la gri");
+            exit(EXIT_FAILURE);
+        } 
+        else if (bmpChildPid == 0)
+        {
+            // Child process for BMP to grayscale conversion
+            int grayscaleChildStatus = 0;
+            convertToGrayscale(inputPath);
+            exit(grayscaleChildStatus);
         }
 
-        sprintf(buffer, "xPixelsPerM: %d \n", infoHeader.xPixelsPerM);
-        write(newFileDescriptor, buffer, strlen(buffer));
-        sprintf(buffer, "yPixelsPerM: %d \n", infoHeader.yPixelsPerM);
-        write(newFileDescriptor, buffer, strlen(buffer));
+        int statusBmpChild;
+        waitpid(bmpChildPid, &statusBmpChild, 0);
 
-        printf("Detalii salvate in fisierul statistica.txt\n");
-        
-        int status;
-        waitpid(-1, &status, 0);
-
-        if (WIFEXITED(status)) {
-            printf("S-a incheiat procesul cu codul %d\n", WEXITSTATUS(status));
-            
+        if (WIFEXITED(statusBmpChild)) 
+        {
+            printf("S-a încheiat procesul pentru conversie la gri cu pid-ul %d și codul %d\n", bmpChildPid, WEXITSTATUS(statusBmpChild));
+        }
     }
-}
-    
-   time_t modificationTime = header.dataOffset;
-   struct tm *modificationTm = localtime(&modificationTime);
-   char timeStr[20];
-   strftime(timeStr, sizeof(timeStr), "%d.%m.%Y", modificationTm);
-    
-  
-
-    int userId = getuid();
-
-    char userPermissions[10];
-   get_permissions(fileStat.st_mode, userPermissions);
-
-    dprintf(newFileDescriptor, "File name: %s\n", inputPath);
-    dprintf(newFileDescriptor, "Height: %ld\n", infoHeader.height);
-    dprintf(newFileDescriptor, "Width: %ld\n", infoHeader.width);
-    dprintf(newFileDescriptor, "File size: %ld\n", fileStat.st_size);
-    dprintf(newFileDescriptor, "User ID: %d\n", userId);
-    dprintf(newFileDescriptor, "Last modification time: %s\n", timeStr);
-    dprintf(newFileDescriptor, "Link count: %ld\n", (long)fileStat.st_nlink);
-    dprintf(newFileDescriptor, "User access rights: %s\n", userPermissions);
-    dprintf(newFileDescriptor, "Group access rights: R--\n");
-    dprintf(newFileDescriptor, "Others access rights: ---\n");
 
     close(newFileDescriptor);
     close(fileDescriptor);
+    closedir(outputDir);
 }
 
+
 int main(int argc, char *argv[]) {
-    if (argc !=4 ) {
+    if (argc != 4) {
         perror("Numar incorect de argumente");
         exit(EXIT_FAILURE);
     }
+    
 
     char *inputDirectory = argv[1];
     char *outputDirectory = argv[2];
-    char character = argv[3][0];
+    char c=argv[3][0];
 
     DIR *dir = opendir(inputDirectory );
 
@@ -327,7 +353,7 @@ int main(int argc, char *argv[]) {
 
     // Create output directory if it does not exist
     if (mkdir(outputDirectory, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != 0 && errno != EEXIST) {
-        perror("Nu se poate crea directorul de iesire");
+        perror("Nu se poate crea sau deschide directorul de iesire");
         exit(EXIT_FAILURE);
     }
 
@@ -349,7 +375,8 @@ int main(int argc, char *argv[]) {
             } 
           else if (pid == 0) 
             {
-                // Child
+                //copil
+                printf("\n");
                 process_file(inputPath, outputDirectory);
                 exit(0);
             }
@@ -360,63 +387,15 @@ int main(int argc, char *argv[]) {
             waitpid(pid, &status, 0);
 
             if (WIFEXITED(status)) {
+            
                 printf("S-a încheiat procesul cu pid-ul %d si codul %d\n", pid, WEXITSTATUS(status));
-          }
-        } 
-        else
-        {
-            pid_t pid = fork();
 
-            if (pid == -1) {
-                perror("Eroare la fork");
-                exit(EXIT_FAILURE);
-         } 
-         else if (pid == 0)
-         {
-
-                int pipefd[2];
-                if (pipe(pipefd) == -1) {
-                    perror("Eroarea la crearea unui pipe");
-                    exit(EXIT_FAILURE);
-                }
-
-                pid_t child_pid = fork();
-                if (child_pid == -1) {
-                    perror("Eroare la fork");
-                    exit(EXIT_FAILURE);
-                } else if (child_pid == 0) {
-
-                    close(pipefd[0]);
-                    process_non_bmp_file(inputPath, pipefd[1], character);
-                } else {
-
-                    close(pipefd[1]);
-
-                    int status;
-                    waitpid(child_pid, &status, 0);
-
-                    if (WIFEXITED(status)) {
-                        printf("S-a încheiat procesul cu pid-ul %d si codul %d\n", child_pid, WEXITSTATUS(status));
-                    }
-
-
-                    pid_t count_pid = fork();
-
-                    if (count_pid == -1) {
-                        perror("Eroare la fork");
-                        exit(EXIT_FAILURE);
-                    } else if (count_pid == 0) {
-
-                        close(pipefd[1]);
-                        count_correct_sentences(pipefd[0], character);
-                    }
-                }
-
-                exit(0);
-            }
         }
+      }
     }
 
     closedir(dir);
+
     return 0;
 }
+

@@ -1,10 +1,11 @@
-119908340120682496103079280640File name: unu/fisier.bmp
-Height: 103079280640
-Width: 119908340120682496
-File size: 8126462
-User ID: 1000
-Last modification time: 05.04.1970
-Link count: 1
-User access rights: RW-RW-R--
-Group access rights: R--
-Others access rights: ---
+nume fisier: unu/fisier.bmp
+inaltime: 8126462
+lungime: 8126462
+dimensiune: 8126462
+identificatorul utilizatorului: 1000
+timpul ultimei modificari: 05.04.1970
+contorul de legaturi: 1
+drepturi de acces user: RW-RW-R--
+drepturi de acces grup: R--
+drepturi de acces altii: ---
+Număr total de linii scrise: 1

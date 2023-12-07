@@ -1,4 +1,4 @@
-nume fisier: unu/fisierr (copy).bmp
+nume fisier: unu/fisierr.bmp
 inaltime: 818058
 lungime: 818058
 dimensiune: 818058
