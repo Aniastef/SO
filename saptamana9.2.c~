@@ -31,7 +31,7 @@ int green;
 int blue;
 int reserver;
 }ColorTable;
-int correctSentences=0;
+
 
 
 void get_permissions(mode_t mode, char *str) {
@@ -105,12 +105,13 @@ void convertToGrayscale(const char *inputPath) {
 }
 
 
-void process_file(char *inputPath, char *outputDirectory, char *argv) {
+void process_file(char *inputPath, char *outputDirectory) {
   
     int readHeader;
     int fileDescriptor;
     int newFileDescriptor;
     int nrLinesWritten = 0;
+
     fileDescriptor= open(inputPath, O_RDWR);
     if (fileDescriptor == -1) 
     {
@@ -170,7 +171,8 @@ void process_file(char *inputPath, char *outputDirectory, char *argv) {
 	} 
 	    
 	    
-	stat(inputPath, &fileStat); 
+	stat(inputPath, &fileStat); //se stocheaza informtii despre fisierul bmp in filestat
+
 	time_t modificationTime = header.dataOffset;
 	struct tm *modificationTm = localtime(&modificationTime);
 	char timeStr[20];
@@ -288,41 +290,7 @@ void process_file(char *inputPath, char *outputDirectory, char *argv) {
           printf("S-a încheiat procesul pentru conversie la gri cu pid-ul %d și codul %d\n", bmpChildPid, WEXITSTATUS(statusBmpChild));
        }
     }else{
-      int fdPipe[2];
-      if(pipe(fdPipe)==-1){
-	perror("pipe");
-	exit(EXIT_FAILURE);
-      }
     
-       pid_t scriptChild = fork();
-       
-      if (scriptChild == -1) 
-      {
-          perror("Eroare la fork pentru conversie la gri");
-          exit(EXIT_FAILURE);
-      } 
-      else if (scriptChild == 0)
-      {
-	close(fdPipe[0]);
-	int inpFile=open(inputPath, O_RDONLY);
-	dup2(inpFile,0);//redirecteaza stdin la fisier inpFile
-	dup2(fdPipe[1],1);//stdoutput e redirectat la partea de scriere din pipe
-	
-	execlp("./script.sh","./script.sh",argv,NULL);
-	//printf daca ajunge aici e rau: script.sh nu se apeleaza
-      }
-        int statusBmpChild;
-        waitpid(scriptChild, &statusBmpChild, 0);
-
-       if (WIFEXITED(statusBmpChild)) 
-       {
-       close(fdPipe[1]);
-	  dup2(fdPipe[0],0);
-	  int nr=0;
-	  scanf("%d",&nr);
-	  correctSentences+=nr;
-          printf("S-a încheiat procesul pentru conversie la gri cu pid-ul %d și codul %d\n", scriptChild, WEXITSTATUS(statusBmpChild));
-       }    
     }
     
     dprintf(newFileDescriptor, "Număr total de linii scrise: %d\n", nrLinesWritten);
@@ -333,7 +301,7 @@ void process_file(char *inputPath, char *outputDirectory, char *argv) {
 
 
 int main(int argc, char *argv[]) {
-    if (argc != 4) {
+    if (argc != 3) {
         perror("Numar incorect de argumente");
         exit(EXIT_FAILURE);
     }
@@ -373,9 +341,9 @@ int main(int argc, char *argv[]) {
         } 
         else if (pid == 0) 
         {
-          
+          //copil
           printf("\n");
-          process_file(inputPath, outputDirectory,argv[3]);
+          process_file(inputPath, outputDirectory);
           exit(0);
         }
 
@@ -391,6 +359,6 @@ int main(int argc, char *argv[]) {
     }
 
     closedir(dir);
-    printf("Numarul de propozitii corecte este: %d\n",correctSentences);
+
     return 0;
 }

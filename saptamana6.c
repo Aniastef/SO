@@ -84,7 +84,7 @@ int main(int argc, char *argv[]) {
     char user_permissions[10];
     get_permissions(S_IRUSR | S_IWUSR | S_IXUSR, user_permissions);
     
-    //scriere informatii in staatistica
+    //scriere informatii in statistica
     dprintf(stats_fd, "nume fisier: %s\n", input_file);
     dprintf(stats_fd, "inaltime: %d\n", height);
     dprintf(stats_fd, "lungime: %d\n", width);

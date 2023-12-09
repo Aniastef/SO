@@ -83,7 +83,7 @@ void process_file(char *inputPath) {
       else 
     {
     
-        stat(inputPath, &fileStat); //se stocheaza informtii despre fisierul bmp in filestat
+        stat(inputPath, &fileStat); 
 
   	time_t modificationTime = header.dataOffset;
   	 struct tm *modificationTm = localtime(&modificationTime);
@@ -194,7 +194,7 @@ int main(int argc, char *argv[]) {
         exit(EXIT_FAILURE);
     }
 
-    //deschidere sau creare statistica daca nu exista
+
     int stats_fd = open("statistica.txt", O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
     if (stats_fd == -1) {
         perror("Eroare la crearea fisierului de statistica");
